@@ -1,26 +1,49 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --ice-bg: #eef6ff;
+  --ice-bg-deep: #dbeafe;
+  --ice-card: #ffffff;
+  --ice-primary: #2563eb;
+  --ice-primary-dark: #1d4ed8;
+  --ice-ink: #0f172a;
+  --ice-muted: #64748b;
+  --ice-border: #bfdbfe;
+  --ice-danger: #dc2626;
+  --ice-ok: #059669;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: var(--ice-bg);
+  --color-foreground: var(--ice-ink);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+body {
+  background:
+    radial-gradient(circle at top left, #bfdbfe 0%, transparent 45%),
+    radial-gradient(circle at bottom right, #93c5fd 0%, transparent 40%),
+    var(--ice-bg);
+  color: var(--ice-ink);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  min-height: 100vh;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+.ice-hot-toast {
+  border-radius: 14px !important;
+  font-weight: 600 !important;
+  box-shadow: 0 12px 30px rgba(37, 99, 235, 0.18) !important;
+}
+
+.ice-hot-toast-success {
+  background: #ecfdf5 !important;
+  color: #047857 !important;
+  border: 1px solid #a7f3d0 !important;
+}
+
+.ice-hot-toast-error {
+  background: #fef2f2 !important;
+  color: #b91c1c !important;
+  border: 1px solid #fecaca !important;
 }
