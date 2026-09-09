@@ -214,3 +214,12 @@ export const productReturnItems = pgTable("product_return_items", {
   quantity: integer("quantity").notNull(),
   unitPrice: numeric("unit_price", { precision: 10, scale: 2 }).notNull(),
 });
+
+/** Singleton platform config (id = 1) — APK download gate, etc. */
+export const platformSettings = pgTable("platform_settings", {
+  id: serial("id").primaryKey(),
+  appDownloadUsername: text("app_download_username"),
+  appDownloadPasswordHash: text("app_download_password_hash"),
+  appDownloadUrl: text("app_download_url"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});

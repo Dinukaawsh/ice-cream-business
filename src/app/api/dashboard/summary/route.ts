@@ -6,6 +6,13 @@ import { saleItems, sales } from "@/db/schema";
 import { getSessionFromRequest } from "@/lib/auth";
 import { corsOptionsResponse, jsonResponse } from "@/lib/cors";
 
+function ymd(date: Date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 function startOfDay(date: Date) {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
@@ -123,7 +130,7 @@ export async function GET(request: NextRequest) {
     );
     const weekly = Array.from({ length: 7 }, (_, index) => {
       const date = new Date(weekAgo.getTime() + index * 24 * 60 * 60 * 1000);
-      const key = date.toISOString().slice(0, 10);
+      const key = ymd(date);
       const label = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][
         date.getDay()
       ];

@@ -1,9 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 
-import { BrandMark } from "@/components/BrandMark";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { useToast } from "@/components/ui/ToastProvider";
 
@@ -20,13 +18,11 @@ type Owner = {
 };
 
 type ConfirmAction =
-  | { type: "logout" }
   | { type: "disable"; owner: Owner }
   | { type: "enable"; owner: Owner }
   | { type: "delete"; owner: Owner };
 
-export default function AdminPage() {
-  const router = useRouter();
+export default function AdminOwnersPage() {
   const toast = useToast();
   const [owners, setOwners] = useState<Owner[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,17 +32,6 @@ export default function AdminPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const me = await fetch("/api/auth/me");
-      if (!me.ok) {
-        router.replace("/login");
-        return;
-      }
-      const meData = await me.json();
-      if (meData.user?.role !== "platform_admin") {
-        router.replace("/login");
-        return;
-      }
-
       const response = await fetch("/api/admin/owners");
       const data = await response.json();
       if (!response.ok) {
@@ -58,7 +43,7 @@ export default function AdminPage() {
     } finally {
       setLoading(false);
     }
-  }, [router, toast]);
+  }, [toast]);
 
   useEffect(() => {
     void load();
@@ -68,13 +53,6 @@ export default function AdminPage() {
     if (!confirm) return;
     setActionLoading(true);
     try {
-      if (confirm.type === "logout") {
-        await fetch("/api/auth/me", { method: "POST" });
-        toast.success("Logged out");
-        router.replace("/login");
-        return;
-      }
-
       if (confirm.type === "disable" || confirm.type === "enable") {
         const status = confirm.type === "disable" ? "disabled" : "active";
         const response = await fetch(`/api/admin/owners?id=${confirm.owner.id}`, {
@@ -96,19 +74,16 @@ export default function AdminPage() {
         return;
       }
 
-      if (confirm.type === "delete") {
-        const response = await fetch(
-          `/api/admin/owners?id=${confirm.owner.id}`,
-          { method: "DELETE" },
-        );
-        const data = await response.json();
-        if (!response.ok) {
-          throw new Error(data.error || "Delete failed");
-        }
-        toast.success(`${confirm.owner.name} deleted`);
-        setConfirm(null);
-        await load();
+      const response = await fetch(`/api/admin/owners?id=${confirm.owner.id}`, {
+        method: "DELETE",
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Delete failed");
       }
+      toast.success(`${confirm.owner.name} deleted`);
+      setConfirm(null);
+      await load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Action failed");
     } finally {
@@ -118,14 +93,6 @@ export default function AdminPage() {
 
   const confirmCopy = (() => {
     if (!confirm) return null;
-    if (confirm.type === "logout") {
-      return {
-        title: "Log out?",
-        message: "You will need to sign in again to manage owners.",
-        confirmLabel: "Log out",
-        variant: "danger" as const,
-      };
-    }
     if (confirm.type === "disable") {
       return {
         title: "Disable owner?",
@@ -151,23 +118,13 @@ export default function AdminPage() {
   })();
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-6xl px-4 py-8">
-      <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <BrandMark size={40} />
-          <h1 className="mt-3 text-3xl font-bold">Registered owners</h1>
-          <p className="text-sm text-[var(--ice-muted)]">
-            Disable, enable, or remove business accounts.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setConfirm({ type: "logout" })}
-          className="rounded-xl border border-[var(--ice-border)] bg-white px-4 py-2 text-sm font-medium transition hover:bg-[var(--ice-bg-deep)]"
-        >
-          Log out
-        </button>
-      </header>
+    <>
+      <div className="mb-4">
+        <h2 className="text-xl font-bold">Registered owners</h2>
+        <p className="text-sm text-[var(--ice-muted)]">
+          Disable, enable, or remove business accounts.
+        </p>
+      </div>
 
       <div className="overflow-hidden rounded-3xl border border-[var(--ice-border)] bg-white/90 shadow-lg shadow-blue-200/30">
         {loading ? (
@@ -190,7 +147,10 @@ export default function AdminPage() {
               </thead>
               <tbody>
                 {owners.map((owner) => (
-                  <tr key={owner.id} className="border-t border-[var(--ice-border)]">
+                  <tr
+                    key={owner.id}
+                    className="border-t border-[var(--ice-border)]"
+                  >
                     <td className="px-4 py-3 font-medium">
                       {owner.businessName ?? "—"}
                     </td>
@@ -267,6 +227,6 @@ export default function AdminPage() {
           }}
         />
       ) : null}
-    </main>
+    </>
   );
 }
