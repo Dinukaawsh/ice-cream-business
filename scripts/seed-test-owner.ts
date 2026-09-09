@@ -5,7 +5,7 @@ config({ path: ".env.local" });
 
 /** Temporary test owner for mobile login without email verification. */
 const DEFAULTS = {
-  email: "owner@test.icecream.app",
+  email: "owner@test.scooply.app",
   password: "TestOwner!2026",
   name: "Test Owner",
   businessName: "Sweet Scoop Test Shop",

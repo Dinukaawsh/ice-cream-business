@@ -3,7 +3,9 @@
 import { FormEvent, Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
+import { BrandMark } from "@/components/BrandMark";
 import { useToast } from "@/components/ui/ToastProvider";
+import { BRAND_NAME } from "@/lib/brand";
 
 function LoginForm() {
   const router = useRouter();
@@ -50,14 +52,12 @@ function LoginForm() {
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center px-4 py-10">
       <div className="rounded-3xl border border-[var(--ice-border)] bg-white/90 p-8 shadow-xl shadow-blue-200/40 backdrop-blur">
-        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--ice-primary)]">
-          Ice Cream
-        </p>
-        <h1 className="mt-2 text-3xl font-bold text-[var(--ice-ink)]">
+        <BrandMark size={48} />
+        <h1 className="mt-4 text-3xl font-bold text-[var(--ice-ink)]">
           Platform admin
         </h1>
         <p className="mt-2 text-sm text-[var(--ice-muted)]">
-          Manage registered ice cream business owners.
+          Manage registered {BRAND_NAME} business owners.
         </p>
 
         <form onSubmit={onSubmit} className="mt-8 space-y-4">

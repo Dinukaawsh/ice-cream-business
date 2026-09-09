@@ -17,7 +17,7 @@ export type SessionUser = {
   businessId: number | null;
 };
 
-const TOKEN_COOKIE = "icecream_token";
+const TOKEN_COOKIE = "scooply_token";
 const BCRYPT_ROUNDS = 12;
 
 export async function hashPassword(password: string) {

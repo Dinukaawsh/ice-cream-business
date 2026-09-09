@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { BrandMark } from "@/components/BrandMark";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { useToast } from "@/components/ui/ToastProvider";
 
@@ -153,10 +154,8 @@ export default function AdminPage() {
     <main className="mx-auto min-h-screen w-full max-w-6xl px-4 py-8">
       <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--ice-primary)]">
-            Ice Cream
-          </p>
-          <h1 className="text-3xl font-bold">Registered owners</h1>
+          <BrandMark size={40} />
+          <h1 className="mt-3 text-3xl font-bold">Registered owners</h1>
           <p className="text-sm text-[var(--ice-muted)]">
             Disable, enable, or remove business accounts.
           </p>

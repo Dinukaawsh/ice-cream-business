@@ -1,5 +1,6 @@
 import { createHash, randomBytes, randomInt } from "crypto";
 
+import { BRAND_NAME } from "./brand";
 import { getAppUrl, getEmailFrom, getResendApiKey } from "./env";
 
 export function createVerificationToken() {
@@ -48,15 +49,15 @@ export async function sendVerificationEmail(email: string, token: string) {
   const verifyUrl = `${getAppUrl()}/api/auth/verify-email?token=${encodeURIComponent(token)}`;
   await sendResendEmail({
     to: email,
-    subject: "Verify your Ice Cream App email",
-    html: `<p>Welcome!</p><p><a href="${verifyUrl}">Verify your email</a> to activate your account.</p><p>This link expires in 24 hours.</p>`,
+    subject: `Verify your ${BRAND_NAME} email`,
+    html: `<p><img src="${getAppUrl()}/logo.png" alt="${BRAND_NAME}" width="56" height="56" style="border-radius:12px;" /></p><p>Welcome to ${BRAND_NAME}!</p><p><a href="${verifyUrl}">Verify your email</a> to activate your account.</p><p>This link expires in 24 hours.</p>`,
   });
 }
 
 export async function sendPasswordResetOtpEmail(email: string, otp: string) {
   await sendResendEmail({
     to: email,
-    subject: "Your Ice Cream App password reset code",
-    html: `<p>Your password reset code is:</p><p style="font-size:24px;font-weight:bold;letter-spacing:4px;">${otp}</p><p>This code expires in 10 minutes. If you did not request it, ignore this email.</p>`,
+    subject: `Your ${BRAND_NAME} password reset code`,
+    html: `<p><img src="${getAppUrl()}/logo.png" alt="${BRAND_NAME}" width="56" height="56" style="border-radius:12px;" /></p><p>Your ${BRAND_NAME} password reset code is:</p><p style="font-size:24px;font-weight:bold;letter-spacing:4px;">${otp}</p><p>This code expires in 10 minutes. If you did not request it, ignore this email.</p>`,
   });
 }

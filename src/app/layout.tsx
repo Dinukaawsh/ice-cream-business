@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import { ToastProvider } from "@/components/ui/ToastProvider";
+import { BRAND_NAME } from "@/lib/brand";
 
 import "./globals.css";
 
@@ -16,8 +17,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Ice Cream Admin",
-  description: "Platform admin for Ice Cream businesses",
+  title: `${BRAND_NAME} Admin`,
+  description: `Platform admin for ${BRAND_NAME} businesses`,
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({

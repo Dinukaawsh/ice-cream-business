@@ -35,5 +35,5 @@ export function getResendApiKey() {
 }
 
 export function getEmailFrom() {
-  return process.env.EMAIL_FROM?.trim() || "Ice Cream App <noreply@icecream.app>";
+  return process.env.EMAIL_FROM?.trim() || "Scooply <noreply@scooply.app>";
 }

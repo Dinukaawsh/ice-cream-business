@@ -1,3 +1,4 @@
+import { BRAND_NAME } from "./brand";
 import { getDiscordWebhookUrl } from "./env";
 
 export async function notifyDiscordNewOwner(input: {
@@ -8,7 +9,7 @@ export async function notifyDiscordNewOwner(input: {
   try {
     const webhookUrl = getDiscordWebhookUrl();
     const content = [
-      "**New ice cream owner registered**",
+      `**New ${BRAND_NAME} owner registered**`,
       `Business: ${input.businessName}`,
       `Email: ${input.email}`,
       `Method: ${input.authMethod}`,

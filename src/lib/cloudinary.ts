@@ -35,7 +35,7 @@ export async function uploadBusinessLogo(dataUri: string, businessId: number) {
   configureCloudinary();
 
   const result = await cloudinary.uploader.upload(dataUri, {
-    folder: `icecream/logos/${businessId}`,
+    folder: `scooply/logos/${businessId}`,
     public_id: "logo",
     overwrite: true,
     invalidate: true,
