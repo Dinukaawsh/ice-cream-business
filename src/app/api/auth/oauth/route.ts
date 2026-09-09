@@ -1,86 +1,25 @@
 import { eq } from "drizzle-orm";
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import { createRemoteJWKSet, jwtVerify } from "jose";
 
 import { getDb } from "@/db";
 import { businesses, users } from "@/db/schema";
 import { createToken, setTokenCookie } from "@/lib/auth";
 import { corsOptionsResponse, jsonResponse } from "@/lib/cors";
 import { notifyDiscordNewOwner } from "@/lib/discord";
+import {
+  toOAuthUserError,
+  verifyFacebookToken,
+  verifyGoogleIdToken,
+} from "@/lib/oauth-providers";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 const oauthSchema = z.object({
   provider: z.enum(["google", "facebook"]),
   idToken: z.string().min(20),
   businessName: z.string().trim().min(2).max(120).optional(),
+  nonce: z.string().trim().min(8).max(128).optional(),
 });
-
-const googleJwks = createRemoteJWKSet(
-  new URL("https://www.googleapis.com/oauth2/v3/certs"),
-);
-
-async function verifyGoogleIdToken(idToken: string) {
-  const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
-  if (!clientId) {
-    throw new Error("GOOGLE_CLIENT_ID is not set");
-  }
-  const { payload } = await jwtVerify(idToken, googleJwks, {
-    issuer: ["https://accounts.google.com", "accounts.google.com"],
-    audience: clientId,
-  });
-  if (!payload.email || payload.email_verified !== true) {
-    throw new Error("Google email not verified");
-  }
-  return {
-    email: String(payload.email).toLowerCase(),
-    name: String(payload.name || payload.email),
-    subject: String(payload.sub),
-  };
-}
-
-async function verifyFacebookToken(accessToken: string) {
-  const appId = process.env.FACEBOOK_APP_ID?.trim();
-  const appSecret = process.env.FACEBOOK_APP_SECRET?.trim();
-  if (!appId || !appSecret) {
-    throw new Error("FACEBOOK_APP_ID / FACEBOOK_APP_SECRET are not set");
-  }
-
-  const debugUrl = new URL("https://graph.facebook.com/debug_token");
-  debugUrl.searchParams.set("input_token", accessToken);
-  debugUrl.searchParams.set("access_token", `${appId}|${appSecret}`);
-  const debugRes = await fetch(debugUrl);
-  if (!debugRes.ok) {
-    throw new Error("Facebook token debug failed");
-  }
-  const debugJson = (await debugRes.json()) as {
-    data?: { is_valid?: boolean; user_id?: string; app_id?: string };
-  };
-  if (!debugJson.data?.is_valid || debugJson.data.app_id !== appId) {
-    throw new Error("Invalid Facebook token");
-  }
-
-  const meUrl = new URL("https://graph.facebook.com/me");
-  meUrl.searchParams.set("fields", "id,name,email");
-  meUrl.searchParams.set("access_token", accessToken);
-  const meRes = await fetch(meUrl);
-  if (!meRes.ok) {
-    throw new Error("Facebook profile fetch failed");
-  }
-  const me = (await meRes.json()) as {
-    id?: string;
-    name?: string;
-    email?: string;
-  };
-  if (!me.email || !me.id) {
-    throw new Error("Facebook account must share a verified email");
-  }
-  return {
-    email: me.email.toLowerCase(),
-    name: me.name || me.email,
-    subject: me.id,
-  };
-}
 
 export async function OPTIONS(request: NextRequest) {
   return corsOptionsResponse(request.headers.get("origin"));
@@ -99,7 +38,7 @@ export async function POST(request: NextRequest) {
     const profile =
       body.provider === "google"
         ? await verifyGoogleIdToken(body.idToken)
-        : await verifyFacebookToken(body.idToken);
+        : await verifyFacebookToken(body.idToken, body.nonce);
 
     const db = getDb();
     const [existing] = await db
@@ -203,8 +142,7 @@ export async function POST(request: NextRequest) {
     console.error("POST /api/auth/oauth failed:", error);
     return jsonResponse(
       {
-        error:
-          error instanceof Error ? error.message : "OAuth login failed",
+        error: toOAuthUserError(error),
       },
       400,
       origin,
