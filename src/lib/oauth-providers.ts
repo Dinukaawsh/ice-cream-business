@@ -162,6 +162,11 @@ async function verifyFacebookClassicToken(
     !debug.json.data?.is_valid ||
     String(debug.json.data.app_id) !== appId
   ) {
+    if (debug.json.data?.app_id && String(debug.json.data.app_id) !== appId) {
+      throw new Error(
+        "Facebook app ID on the server does not match this login. Update FACEBOOK_APP_ID and FACEBOOK_APP_SECRET on Vercel, then redeploy.",
+      );
+    }
     throw new Error(debugError || "Invalid Facebook token");
   }
 
