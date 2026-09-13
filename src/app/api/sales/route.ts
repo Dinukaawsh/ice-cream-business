@@ -57,8 +57,20 @@ async function loadSale(businessId: number, saleId: number) {
   if (!sale) return null;
 
   const items = await db
-    .select()
+    .select({
+      id: saleItems.id,
+      productId: saleItems.productId,
+      variantId: saleItems.variantId,
+      productName: saleItems.productName,
+      flavor: saleItems.flavor,
+      variantLabel: saleItems.variantLabel,
+      quantity: saleItems.quantity,
+      unitPrice: saleItems.unitPrice,
+      productActive: products.isActive,
+      productDeletedAt: products.deletedAt,
+    })
     .from(saleItems)
+    .leftJoin(products, eq(saleItems.productId, products.id))
     .where(eq(saleItems.saleId, saleId));
 
   return {
@@ -87,6 +99,7 @@ async function loadSale(businessId: number, saleId: number) {
       quantity: item.quantity,
       unitPrice: asNumber(item.unitPrice),
       lineTotal: asNumber(item.unitPrice) * item.quantity,
+      available: item.productActive === true && !item.productDeletedAt,
     })),
   };
 }

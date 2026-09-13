@@ -101,6 +101,7 @@ export const products = pgTable("products", {
   flavor: text("flavor").notNull(),
   notes: text("notes"),
   isActive: boolean("is_active").notNull().default(true),
+  deletedAt: timestamp("deleted_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

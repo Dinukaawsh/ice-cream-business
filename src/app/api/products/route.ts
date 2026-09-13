@@ -1,9 +1,15 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { NextRequest } from "next/server";
 import { z } from "zod";
 
 import { getDb } from "@/db";
-import { categories, productVariants, products } from "@/db/schema";
+import {
+  categories,
+  productReturnItems,
+  productVariants,
+  products,
+  saleItems,
+} from "@/db/schema";
 import { getSessionFromRequest } from "@/lib/auth";
 import { corsOptionsResponse, jsonResponse } from "@/lib/cors";
 
@@ -53,7 +59,9 @@ async function loadProductsForBusiness(businessId: number) {
     })
     .from(products)
     .leftJoin(categories, eq(products.categoryId, categories.id))
-    .where(eq(products.businessId, businessId))
+    .where(
+      and(eq(products.businessId, businessId), isNull(products.deletedAt)),
+    )
     .orderBy(desc(products.createdAt));
 
   if (productRows.length === 0) return [];
@@ -88,6 +96,39 @@ async function loadProductsForBusiness(businessId: number) {
       isActive: variant.isActive,
     })),
   }));
+}
+
+async function productHasHistory(productId: number) {
+  const db = getDb();
+  const [sold] = await db
+    .select({ id: saleItems.id })
+    .from(saleItems)
+    .where(eq(saleItems.productId, productId))
+    .limit(1);
+  if (sold) return true;
+  const [returned] = await db
+    .select({ id: productReturnItems.id })
+    .from(productReturnItems)
+    .where(eq(productReturnItems.productId, productId))
+    .limit(1);
+  return Boolean(returned);
+}
+
+async function referencedVariantIds(variantIds: number[]) {
+  const referenced = new Set<number>();
+  if (variantIds.length === 0) return referenced;
+  const db = getDb();
+  const sold = await db
+    .select({ id: saleItems.variantId })
+    .from(saleItems)
+    .where(inArray(saleItems.variantId, variantIds));
+  const returned = await db
+    .select({ id: productReturnItems.variantId })
+    .from(productReturnItems)
+    .where(inArray(productReturnItems.variantId, variantIds));
+  for (const row of sold) referenced.add(row.id);
+  for (const row of returned) referenced.add(row.id);
+  return referenced;
 }
 
 export async function OPTIONS(request: NextRequest) {
@@ -188,19 +229,67 @@ export async function PATCH(request: NextRequest) {
     return jsonResponse({ error: "Invalid product id" }, 400, origin);
   }
 
+  const action = request.nextUrl.searchParams.get("action");
+  if (action === "disable" || action === "enable") {
+    try {
+      const db = getDb();
+      const [existing] = await db
+        .select({
+          id: products.id,
+          isActive: products.isActive,
+          deletedAt: products.deletedAt,
+        })
+        .from(products)
+        .where(
+          and(eq(products.id, id), eq(products.businessId, session.businessId)),
+        )
+        .limit(1);
+
+      if (!existing || existing.deletedAt) {
+        return jsonResponse({ error: "Product not found" }, 404, origin);
+      }
+
+      const nextActive = action === "enable";
+      await db
+        .update(products)
+        .set({ isActive: nextActive })
+        .where(eq(products.id, id));
+      await db
+        .update(productVariants)
+        .set({ isActive: nextActive })
+        .where(eq(productVariants.productId, id));
+
+      const list = await loadProductsForBusiness(session.businessId);
+      const updated = list.find((item) => item.id === id);
+      return jsonResponse(
+        {
+          product: updated,
+          message: nextActive
+            ? "Product enabled for sale"
+            : "Product disabled",
+        },
+        200,
+        origin,
+      );
+    } catch (error) {
+      console.error("PATCH /api/products status failed:", error);
+      return jsonResponse({ error: "Failed to update product" }, 500, origin);
+    }
+  }
+
   try {
     const body = productSchema.parse(await request.json());
     const db = getDb();
 
     const [existing] = await db
-      .select({ id: products.id })
+      .select({ id: products.id, deletedAt: products.deletedAt })
       .from(products)
       .where(
         and(eq(products.id, id), eq(products.businessId, session.businessId)),
       )
       .limit(1);
 
-    if (!existing) {
+    if (!existing || existing.deletedAt) {
       return jsonResponse({ error: "Product not found" }, 404, origin);
     }
 
@@ -220,6 +309,18 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
+    const existingVariants = await db
+      .select({ id: productVariants.id })
+      .from(productVariants)
+      .where(eq(productVariants.productId, id));
+    const existingIds = new Set(existingVariants.map((row) => row.id));
+
+    for (const variant of body.variants) {
+      if (variant.id && !existingIds.has(variant.id)) {
+        return jsonResponse({ error: "Invalid variant id" }, 400, origin);
+      }
+    }
+
     await db
       .update(products)
       .set({
@@ -231,19 +332,55 @@ export async function PATCH(request: NextRequest) {
       })
       .where(eq(products.id, id));
 
-    await db
-      .delete(productVariants)
-      .where(eq(productVariants.productId, id));
+    const keepIds = new Set<number>();
+    for (const variant of body.variants) {
+      if (variant.id) {
+        await db
+          .update(productVariants)
+          .set({
+            label: variant.label,
+            price: variant.price.toFixed(2),
+            stockQty: variant.stockQty,
+            isActive: variant.isActive,
+          })
+          .where(
+            and(
+              eq(productVariants.id, variant.id),
+              eq(productVariants.productId, id),
+            ),
+          );
+        keepIds.add(variant.id);
+      } else {
+        const [created] = await db
+          .insert(productVariants)
+          .values({
+            productId: id,
+            label: variant.label,
+            price: variant.price.toFixed(2),
+            stockQty: variant.stockQty,
+            isActive: variant.isActive,
+          })
+          .returning({ id: productVariants.id });
+        keepIds.add(created.id);
+      }
+    }
 
-    await db.insert(productVariants).values(
-      body.variants.map((variant) => ({
-        productId: id,
-        label: variant.label,
-        price: variant.price.toFixed(2),
-        stockQty: variant.stockQty,
-        isActive: variant.isActive,
-      })),
-    );
+    const removedIds = existingVariants
+      .map((row) => row.id)
+      .filter((variantId) => !keepIds.has(variantId));
+    const referenced = await referencedVariantIds(removedIds);
+    for (const variantId of removedIds) {
+      if (referenced.has(variantId)) {
+        await db
+          .update(productVariants)
+          .set({ isActive: false })
+          .where(eq(productVariants.id, variantId));
+      } else {
+        await db
+          .delete(productVariants)
+          .where(eq(productVariants.id, variantId));
+      }
+    }
 
     const list = await loadProductsForBusiness(session.businessId);
     const updated = list.find((item) => item.id === id);
@@ -276,16 +413,56 @@ export async function DELETE(request: NextRequest) {
 
   try {
     const db = getDb();
-    const deleted = await db
-      .delete(products)
+    const [existing] = await db
+      .select({
+        id: products.id,
+        isActive: products.isActive,
+        deletedAt: products.deletedAt,
+      })
+      .from(products)
       .where(
         and(eq(products.id, id), eq(products.businessId, session.businessId)),
       )
-      .returning({ id: products.id });
+      .limit(1);
 
-    if (deleted.length === 0) {
+    if (!existing || existing.deletedAt) {
       return jsonResponse({ error: "Product not found" }, 404, origin);
     }
+
+    if (existing.isActive) {
+      return jsonResponse(
+        { error: "Disable this product first, then you can delete it." },
+        400,
+        origin,
+      );
+    }
+
+    if (await productHasHistory(id)) {
+      await db
+        .update(products)
+        .set({ isActive: false, deletedAt: new Date() })
+        .where(eq(products.id, id));
+      await db
+        .update(productVariants)
+        .set({ isActive: false })
+        .where(eq(productVariants.productId, id));
+      return jsonResponse(
+        {
+          ok: true,
+          archived: true,
+          message:
+            "Product removed from the list. Past bills still show it as no longer available.",
+        },
+        200,
+        origin,
+      );
+    }
+
+    await db
+      .delete(products)
+      .where(
+        and(eq(products.id, id), eq(products.businessId, session.businessId)),
+      );
 
     return jsonResponse({ ok: true, message: "Product deleted" }, 200, origin);
   } catch (error) {

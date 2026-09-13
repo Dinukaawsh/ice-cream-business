@@ -4,6 +4,7 @@ import { NextRequest } from "next/server";
 import { getDb } from "@/db";
 import {
   productReturns,
+  products,
   saleItems,
   sales,
 } from "@/db/schema";
@@ -86,9 +87,12 @@ export async function GET(request: NextRequest) {
         variantLabel: saleItems.variantLabel,
         quantity: sql<number>`coalesce(sum(${saleItems.quantity}), 0)::int`,
         amount: sql<string>`coalesce(sum(${saleItems.unitPrice} * ${saleItems.quantity}), 0)`,
+        productActive: products.isActive,
+        productDeletedAt: products.deletedAt,
       })
       .from(saleItems)
       .innerJoin(sales, eq(saleItems.saleId, sales.id))
+      .leftJoin(products, eq(saleItems.productId, products.id))
       .where(
         and(
           eq(sales.businessId, businessId),
@@ -100,6 +104,8 @@ export async function GET(request: NextRequest) {
         saleItems.productName,
         saleItems.flavor,
         saleItems.variantLabel,
+        products.isActive,
+        products.deletedAt,
       )
       .orderBy(
         sql`sum(${saleItems.unitPrice} * ${saleItems.quantity}) desc`,
@@ -144,6 +150,7 @@ export async function GET(request: NextRequest) {
             variantLabel: row.variantLabel,
             quantity: row.quantity,
             amount: asNumber(row.amount),
+            available: row.productActive === true && !row.productDeletedAt,
           })),
         },
       },
