@@ -139,6 +139,19 @@ export const customers = pgTable("customers", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const customerPayments = pgTable("customer_payments", {
+  id: serial("id").primaryKey(),
+  businessId: integer("business_id")
+    .notNull()
+    .references(() => businesses.id, { onDelete: "cascade" }),
+  customerId: integer("customer_id")
+    .notNull()
+    .references(() => customers.id, { onDelete: "cascade" }),
+  amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const sales = pgTable("sales", {
   id: serial("id").primaryKey(),
   businessId: integer("business_id")
